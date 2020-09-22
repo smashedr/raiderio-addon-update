@@ -1,6 +1,6 @@
-$source_file_name = "raiderio-db.update.ps1"
-$output_file_name = "RaiderIO-DB-Update.exe"
-$application_name = "RaiderIO DB Update"
+$source_file_name = "raiderio-addon-update.ps1"
+$output_file_name = "RaiderIO-AddOn-Update.exe"
+$application_name = "RaiderIO AddOn Update"
 $author_name = "Shane"
 
 $ErrorActionPreference = "Stop"
