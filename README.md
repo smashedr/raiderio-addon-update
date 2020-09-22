@@ -4,7 +4,7 @@ A very simple and lightweight script to update the RaiderIO AddOn and database a
 
 This only catches the daily refresh at GitHub from [RaiderIO/raiderio-addon](https://github.com/RaiderIO/raiderio-addon).
 
-No login or setup required. Will remove and update the addon if existing or add if it not there.
+No login or setup required. At run time it will remove and update the addon if existing or add if it not there. You can then leave it running and it will check for new updates every 30 minutes and perform an update if found.
 
 ### Download
 
