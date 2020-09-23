@@ -11,36 +11,6 @@ function ExitScript() {
     exit
 }
 
-Write-Output "`nStarting the RaiderIO AddOn Update on $(Get-Date)`n"
-
-$wow_dir_path = Join-Path -Path ${Env:ProgramFiles(x86)} -ChildPath "World of Warcraft"
-
-if (Test-Path $wow_dir_path) {
-    $wow_dir = Get-Item $wow_dir_path
-    Write-Output "Found WoW installation directory: $wow_dir"
-} else {
-    $wow_folder = New-Object System.Windows.Forms.FolderBrowserDialog
-    $wow_folder.Description = "Select your World of Warcraft installation directory..."
-    $wow_folder.rootfolder = "MyComputer"
-
-    if ($wow_folder.ShowDialog() -eq "OK") {
-        $wow_folder_path += $wow_folder.SelectedPath
-    } else {
-        Write-Output "No WoW directory selected, please try again."
-        ExitScript
-    }
-
-    $wow_dir = Get-Item $wow_folder_path
-    Write-Output "User selected WoW installation directory: $wow_dir"
-}
-
-$addons_dir = Join-Path -Path $wow_dir -ChildPath "_retail_\Interface\AddOns"
-if (!(Test-Path $addons_dir)) {
-    Write-Output "Error, WoW AddOns directory not found: $addons_dir"
-    ExitScript
-}
-Write-Output "Found WoW AddOns directory: $addons_dir"
-
 function Update_RaiderIO() {
     Write-Output "Performing Addon update now to hash: $last_sha"
 
@@ -100,6 +70,36 @@ function Get_Latest_Sha() {
     }
 }
 
+Write-Output "`nStarting the RaiderIO AddOn Update on $(Get-Date)`n"
+
+$wow_dir_path = Join-Path -Path ${Env:ProgramFiles(x86)} -ChildPath "World of Warcraft"
+if (Test-Path $wow_dir_path) {
+    $wow_dir = Get-Item $wow_dir_path
+    Write-Output "Found WoW installation directory: $wow_dir"
+} else {
+    $wow_folder = New-Object System.Windows.Forms.FolderBrowserDialog
+    $wow_folder.Description = "Select your World of Warcraft installation directory..."
+    $wow_folder.rootfolder = "MyComputer"
+
+    if ($wow_folder.ShowDialog() -eq "OK") {
+        $wow_folder_path += $wow_folder.SelectedPath
+    } else {
+        Write-Output "No WoW directory selected, please try again."
+        ExitScript
+    }
+
+    $wow_dir = Get-Item $wow_folder_path
+    Write-Output "User selected WoW installation directory: $wow_dir"
+}
+
+$addons_dir = Join-Path -Path $wow_dir -ChildPath "_retail_\Interface\AddOns"
+if (Test-Path $addons_dir) {
+    Write-Output "Found WoW AddOns directory: $addons_dir"
+} else {
+    Write-Output "Error, WoW AddOns directory not found: $addons_dir"
+    ExitScript
+}
+
 $last_sha_check = Get_Latest_Sha
 if ($last_sha_check -ne $null) {
     $last_sha = $last_sha_check
@@ -124,7 +124,7 @@ while ($True) {
     }
     if ($new_sha -ne $last_sha) {
         $last_sha = $new_sha
-        Write-Output "Update found: $last_sha"
+        Write-Output "Yes update found: $last_sha"
         Update_RaiderIO
     } else {
         Write-Output "No update found: $last_sha"
