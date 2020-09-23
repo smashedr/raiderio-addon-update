@@ -11,12 +11,11 @@ function ExitScript() {
     exit
 }
 
-Write-Output "`nStarting the RaiderIO AddOn Update using source: $rio_gh_url`n"
+Write-Output "`nStarting the RaiderIO AddOn Update on $(Get-Date)`n"
 
 $wow_dir_path = Join-Path -Path ${Env:ProgramFiles(x86)} -ChildPath "World of Warcraft"
 
-if (Test-Path $wow_dir_path)
-{
+if (Test-Path $wow_dir_path) {
     $wow_dir = Get-Item $wow_dir_path
     Write-Output "Found WoW installation directory: $wow_dir"
 } else {
@@ -24,8 +23,7 @@ if (Test-Path $wow_dir_path)
     $wow_folder.Description = "Select your World of Warcraft installation directory..."
     $wow_folder.rootfolder = "MyComputer"
 
-    if($wow_folder.ShowDialog() -eq "OK")
-    {
+    if ($wow_folder.ShowDialog() -eq "OK") {
         $wow_folder_path += $wow_folder.SelectedPath
     } else {
         Write-Output "No WoW directory selected, please try again."
@@ -44,25 +42,30 @@ if (!(Test-Path $addons_dir)) {
 Write-Output "Found WoW AddOns directory: $addons_dir"
 
 function Update_RaiderIO() {
-    Write-Output "Performing AddOn update now..."
+    Write-Output "Performing Addon update now to hash: $last_sha"
 
     $temp_dir = New-Item -Force -Path $env:TEMP -Name "raiderio-db-update" -ItemType "directory"
     $db_zip_file_path = Join-Path -Path $temp_dir.FullName -ChildPath "raiderio-addon-master.zip"
 
-    if ($temp_dir.GetFiles() -or $temp_dir.GetDirectories())
-    {
+    if ($temp_dir.GetFiles() -or $temp_dir.GetDirectories()) {
         Write-Output "Removing and re-creating existing temp directory: $temp_dir"
-        $temp_dir.Delete($true)
+        $temp_dir.Delete($True)
         $temp_dir = New-Item -Force -Path $env:TEMP -Name "raiderio-db-update" -ItemType "directory"
     }
 
     Write-Output "Downloading new database to: $db_zip_file_path"
-    $response = Invoke-WebRequest -uri $rio_gh_url -outfile $db_zip_file_path
+    try {
+        Invoke-WebRequest -uri $rio_gh_url -outfile $db_zip_file_path
+    } catch {
+        Write-Output "Error downloading source from GitHub: $rio_gh_url"
+        $temp_dir.Delete($True)
+        return
+    }
 
     Write-Output "Extracting database to temp directory: $temp_dir"
     Expand-Archive -literalpath $db_zip_file_path -destinationpath $temp_dir.FullName
 
-    Write-Output "Building new addon locally..."
+    Write-Output "Building new Addon locally in folder: $temp_dir"
     Set-Location -Path $temp_dir
     Remove-Item -Force $db_zip_file_path
     Rename-Item -Path "raiderio-addon-master" -NewName "RaiderIO"
@@ -72,38 +75,58 @@ function Update_RaiderIO() {
     if (Test-Path "RaiderIO\LICENSE") { Remove-Item "RaiderIO\LICENSE" }
 
     $rio_ad_dir = Join-Path -Path $addons_dir -ChildPath "RaiderIO"
-    if (Test-Path $rio_ad_dir)
-    {
+    if (Test-Path $rio_ad_dir) {
         Write-Output "Removing Live AddOn from WoW AddOns directory: $addons_dir"
         Get-ChildItem "$addons_dir\RaiderIO*"
         Remove-Item -Recurse -Force "$addons_dir\RaiderIO*"
     }
 
-    Write-Output "Moving new addon and database to live WoW AddOns..."
+    Write-Output "Moving new Addon to AddOns directory: $addons_dir"
     Move-Item -Path "$temp_dir\*" -Destination $addons_dir
 
     Write-Output "Cleaning up temp directory: $temp_dir"
-    $temp_dir.Delete($true)
-    Write-Output "`nSuccess! Done updating RaiderIO AddOn and Database...`n"
+    $temp_dir.Delete($True)
+    Write-Output "`nSuccess! Updated RaiderIO AddOn and Database to hash: $last_sha`n"
 }
 
 function Get_Latest_Sha() {
     $headers = New-Object "System.Collections.Generic.Dictionary[[String],[String]]"
     $headers.Add("Accept", "application/vnd.github.v3+json")
-    $response = Invoke-RestMethod $rio_gh_api_url -Method 'GET' -Headers $headers
-    return $response[0].sha
+    try {
+        $response = Invoke-RestMethod $rio_gh_api_url -Method 'GET' -Headers $headers
+        return $response[0].sha
+    } catch {
+        return $null
+    }
 }
 
-$last_sha = Get_Latest_Sha
-Update_RaiderIO
-Write-Output "Will check for new updates every 30 minutes. You can leave this running."
+$last_sha_check = Get_Latest_Sha
+if ($last_sha_check -ne $null) {
+    $last_sha = $last_sha_check
+} else {
+    Write-Output "Error checking GitHub API for latest version information."
+    Write-Output "Please try re-running the script again at a later time."
+    ExitScript
+}
 
-while($true) {
+Update_RaiderIO
+
+Write-Output "Will check for new updates every 30 minutes. You can leave this running..."
+
+while ($True) {
     Start-Sleep -Seconds 1800
-    Write-Output "$(Get-Date) - Checking for a new update."
-    $new_sha = Get_Latest_Sha
+    Write-Host -NoNewline "$(Get-Date) - Checking for update... "
+    $new_sha_check = Get_Latest_Sha
+    if ($new_sha_check -ne $null) {
+        $new_sha = $new_sha_check
+    } else {
+        Write-Output "Error checking for update, will try again in 30 minutes."
+    }
     if ($new_sha -ne $last_sha) {
         $last_sha = $new_sha
+        Write-Output "Update found: $last_sha"
         Update_RaiderIO
+    } else {
+        Write-Output "No update found: $last_sha"
     }
 }
